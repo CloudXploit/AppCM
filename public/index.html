@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CM Diagnostics - Enterprise Content Manager Diagnostics</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .status-healthy { color: #10b981; }
+        .status-warning { color: #f59e0b; }
+        .status-critical { color: #ef4444; }
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <nav class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-heartbeat text-3xl mr-3"></i>
+                    <h1 class="text-2xl font-bold">CM Diagnostics</h1>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <button onclick="showDashboard()" class="hover:text-gray-200 transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </button>
+                    <button onclick="showDiagnostics()" class="hover:text-gray-200 transition">
+                        <i class="fas fa-stethoscope mr-2"></i>Diagnostics
+                    </button>
+                    <button onclick="showAnalytics()" class="hover:text-gray-200 transition">
+                        <i class="fas fa-chart-line mr-2"></i>Analytics
+                    </button>
+                    <button onclick="showIntegrations()" class="hover:text-gray-200 transition">
+                        <i class="fas fa-plug mr-2"></i>Integrations
+                    </button>
+                    <button id="loginBtn" onclick="showLogin()" class="bg-white text-purple-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Dashboard View -->
+        <div id="dashboardView" class="view">
+            <!-- System Status -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">System Overview</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Metric Cards -->
+                    <div class="metric-card bg-white rounded-lg p-6 card-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <i class="fas fa-server text-3xl text-blue-500"></i>
+                            <span class="text-sm text-gray-500">Real-time</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-700">Active Systems</h3>
+                        <p class="text-3xl font-bold text-gray-900 mt-2" id="activeSystems">0</p>
+                        <p class="text-sm text-green-500 mt-2">
+                            <i class="fas fa-arrow-up"></i> All systems operational
+                        </p>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-lg p-6 card-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <i class="fas fa-microchip text-3xl text-green-500"></i>
+                            <span class="text-sm text-gray-500">Avg</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-700">CPU Usage</h3>
+                        <p class="text-3xl font-bold text-gray-900 mt-2" id="cpuUsage">0%</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-3">
+                            <div id="cpuBar" class="bg-green-500 h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-lg p-6 card-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <i class="fas fa-memory text-3xl text-purple-500"></i>
+                            <span class="text-sm text-gray-500">Avg</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-700">Memory Usage</h3>
+                        <p class="text-3xl font-bold text-gray-900 mt-2" id="memoryUsage">0%</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-3">
+                            <div id="memoryBar" class="bg-purple-500 h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-lg p-6 card-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <i class="fas fa-exclamation-triangle text-3xl text-yellow-500"></i>
+                            <span class="text-sm text-gray-500">Total</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-700">Active Findings</h3>
+                        <p class="text-3xl font-bold text-gray-900 mt-2" id="activeFindings">0</p>
+                        <p class="text-sm text-gray-500 mt-2">
+                            <span class="text-red-500">0 critical</span> • 
+                            <span class="text-yellow-500">0 warning</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">System Performance</h3>
+                    <canvas id="performanceChart"></canvas>
+                </div>
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Findings by Category</h3>
+                    <canvas id="findingsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="bg-white rounded-lg p-6 card-shadow">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Recent Activities</h3>
+                <div id="activityFeed" class="space-y-3">
+                    <div class="flex items-center p-3 bg-gray-50 rounded">
+                        <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                        <div>
+                            <p class="text-sm font-medium">System health check completed</p>
+                            <p class="text-xs text-gray-500">Just now</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diagnostics View -->
+        <div id="diagnosticsView" class="view hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Diagnostics Center</h2>
+            
+            <div class="bg-white rounded-lg p-6 card-shadow mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Run Diagnostics</h3>
+                    <button onclick="runDiagnostics()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                        <i class="fas fa-play mr-2"></i>Run Now
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" class="mr-2" checked> Performance Checks
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" class="mr-2" checked> Security Scan
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" class="mr-2" checked> Configuration Audit
+                    </label>
+                </div>
+            </div>
+
+            <div id="diagnosticsResults" class="space-y-4"></div>
+        </div>
+
+        <!-- Analytics View -->
+        <div id="analyticsView" class="view hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Analytics & ML Insights</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Anomalies Detected</h3>
+                    <p class="text-3xl font-bold text-red-500">0</p>
+                    <p class="text-sm text-gray-500 mt-2">In the last 24 hours</p>
+                </div>
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Predictions</h3>
+                    <p class="text-3xl font-bold text-blue-500">0</p>
+                    <p class="text-sm text-gray-500 mt-2">ML models active</p>
+                </div>
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Patterns Found</h3>
+                    <p class="text-3xl font-bold text-purple-500">0</p>
+                    <p class="text-sm text-gray-500 mt-2">Behavioral patterns</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 card-shadow">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Predictive Analytics</h3>
+                <canvas id="predictiveChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Integrations View -->
+        <div id="integrationsView" class="view hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Integration Hub</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Integration Cards -->
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <div class="flex items-center mb-4">
+                        <img src="https://cdn.jsdelivr.net/npm/simple-icons@v6/icons/slack.svg" class="w-8 h-8 mr-3">
+                        <h3 class="text-lg font-semibold text-gray-700">Slack</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Send alerts and notifications to Slack channels</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-green-500">
+                            <i class="fas fa-check-circle"></i> Connected
+                        </span>
+                        <button class="text-sm text-purple-600 hover:text-purple-700">Configure</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <div class="flex items-center mb-4">
+                        <img src="https://cdn.jsdelivr.net/npm/simple-icons@v6/icons/pagerduty.svg" class="w-8 h-8 mr-3">
+                        <h3 class="text-lg font-semibold text-gray-700">PagerDuty</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Create incidents for critical findings</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">
+                            <i class="fas fa-times-circle"></i> Not connected
+                        </span>
+                        <button class="text-sm text-purple-600 hover:text-purple-700">Connect</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg p-6 card-shadow">
+                    <div class="flex items-center mb-4">
+                        <img src="https://cdn.jsdelivr.net/npm/simple-icons@v6/icons/jira.svg" class="w-8 h-8 mr-3">
+                        <h3 class="text-lg font-semibold text-gray-700">JIRA</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Create tickets for remediation tasks</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-green-500">
+                            <i class="fas fa-check-circle"></i> Connected
+                        </span>
+                        <button class="text-sm text-purple-600 hover:text-purple-700">Configure</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div id="loginModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+            <div class="bg-white rounded-lg p-8 w-96">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Login to CM Diagnostics</h2>
+                <form onsubmit="handleLogin(event)">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                        <input type="email" id="email" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500" required>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                        <input type="password" id="password" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition">
+                        Login
+                    </button>
+                    <button type="button" onclick="closeLogin()" class="w-full mt-2 text-gray-600 hover:text-gray-800 transition">
+                        Cancel
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // Global variables
+        let socket;
+        let performanceChart;
+        let findingsChart;
+        let predictiveChart;
+        let isAuthenticated = false;
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            connectWebSocket();
+            checkAuthStatus();
+            showDashboard();
+            startDataUpdates();
+        });
+
+        // WebSocket connection
+        function connectWebSocket() {
+            socket = io('http://localhost:3000');
+            
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                addActivity('Connected to CM Diagnostics server', 'success');
+            });
+
+            socket.on('metrics', (data) => {
+                updateMetrics(data);
+            });
+
+            socket.on('finding', (data) => {
+                addFinding(data);
+            });
+
+            socket.on('analytics:event', (data) => {
+                handleAnalyticsEvent(data);
+            });
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            // Performance Chart
+            const perfCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU Usage',
+                        data: [],
+                        borderColor: 'rgb(59, 130, 246)',
+                        tension: 0.1
+                    }, {
+                        label: 'Memory Usage',
+                        data: [],
+                        borderColor: 'rgb(139, 92, 246)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            // Findings Chart
+            const findingsCtx = document.getElementById('findingsChart').getContext('2d');
+            findingsChart = new Chart(findingsCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Performance', 'Security', 'Configuration', 'Availability'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgb(59, 130, 246)',
+                            'rgb(239, 68, 68)',
+                            'rgb(245, 158, 11)',
+                            'rgb(16, 185, 129)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Predictive Chart
+            const predCtx = document.getElementById('predictiveChart');
+            if (predCtx) {
+                predictiveChart = new Chart(predCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Predicted CPU',
+                            data: [],
+                            borderColor: 'rgb(59, 130, 246)',
+                            borderDash: [5, 5]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+
+        // View switching
+        function showDashboard() {
+            showView('dashboardView');
+        }
+
+        function showDiagnostics() {
+            showView('diagnosticsView');
+        }
+
+        function showAnalytics() {
+            showView('analyticsView');
+        }
+
+        function showIntegrations() {
+            showView('integrationsView');
+        }
+
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        // Authentication
+        function checkAuthStatus() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                isAuthenticated = true;
+                updateAuthUI();
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+
+        function closeLogin() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            showLoading();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('token', data.token);
+                    isAuthenticated = true;
+                    updateAuthUI();
+                    closeLogin();
+                    addActivity('Successfully logged in', 'success');
+                } else {
+                    // For demo, allow login anyway
+                    localStorage.setItem('token', 'demo-token');
+                    isAuthenticated = true;
+                    updateAuthUI();
+                    closeLogin();
+                    addActivity('Logged in (demo mode)', 'info');
+                }
+            } catch (error) {
+                // For demo, allow login anyway
+                localStorage.setItem('token', 'demo-token');
+                isAuthenticated = true;
+                updateAuthUI();
+                closeLogin();
+                addActivity('Logged in (demo mode)', 'info');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateAuthUI() {
+            const loginBtn = document.getElementById('loginBtn');
+            if (isAuthenticated) {
+                loginBtn.innerHTML = '<i class="fas fa-sign-out-alt mr-2"></i>Logout';
+                loginBtn.onclick = logout;
+            } else {
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Login';
+                loginBtn.onclick = showLogin;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            isAuthenticated = false;
+            updateAuthUI();
+            addActivity('Logged out', 'info');
+        }
+
+        // Data updates
+        function startDataUpdates() {
+            // Update metrics every 5 seconds
+            setInterval(fetchMetrics, 5000);
+            
+            // Initial load
+            fetchMetrics();
+            fetchSystemStatus();
+        }
+
+        async function fetchMetrics() {
+            try {
+                // Simulate metrics for demo
+                const cpu = Math.random() * 60 + 20;
+                const memory = Math.random() * 50 + 30;
+                
+                updateMetrics({
+                    cpu: { usage: cpu / 100 },
+                    memory: { usagePercent: memory / 100 }
+                });
+
+                // Update charts
+                const now = new Date().toLocaleTimeString();
+                if (performanceChart.data.labels.length > 20) {
+                    performanceChart.data.labels.shift();
+                    performanceChart.data.datasets[0].data.shift();
+                    performanceChart.data.datasets[1].data.shift();
+                }
+                performanceChart.data.labels.push(now);
+                performanceChart.data.datasets[0].data.push(cpu);
+                performanceChart.data.datasets[1].data.push(memory);
+                performanceChart.update();
+
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+            }
+        }
+
+        async function fetchSystemStatus() {
+            // Simulate system status
+            document.getElementById('activeSystems').textContent = '5';
+            document.getElementById('activeFindings').textContent = '3';
+            
+            // Update findings chart
+            findingsChart.data.datasets[0].data = [2, 1, 0, 0];
+            findingsChart.update();
+        }
+
+        function updateMetrics(data) {
+            if (data.cpu) {
+                const cpuPercent = (data.cpu.usage * 100).toFixed(1);
+                document.getElementById('cpuUsage').textContent = cpuPercent + '%';
+                document.getElementById('cpuBar').style.width = cpuPercent + '%';
+                
+                // Update color based on usage
+                const cpuBar = document.getElementById('cpuBar');
+                if (cpuPercent > 80) {
+                    cpuBar.className = 'bg-red-500 h-2 rounded-full';
+                } else if (cpuPercent > 60) {
+                    cpuBar.className = 'bg-yellow-500 h-2 rounded-full';
+                } else {
+                    cpuBar.className = 'bg-green-500 h-2 rounded-full';
+                }
+            }
+            
+            if (data.memory) {
+                const memPercent = (data.memory.usagePercent * 100).toFixed(1);
+                document.getElementById('memoryUsage').textContent = memPercent + '%';
+                document.getElementById('memoryBar').style.width = memPercent + '%';
+            }
+        }
+
+        // Diagnostics
+        async function runDiagnostics() {
+            showLoading();
+            const resultsDiv = document.getElementById('diagnosticsResults');
+            resultsDiv.innerHTML = '';
+
+            try {
+                // Simulate diagnostic run
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const results = [
+                    { title: 'High Memory Usage', severity: 'warning', category: 'performance', description: 'Memory usage is above 80% threshold' },
+                    { title: 'Security Updates Available', severity: 'info', category: 'security', description: '3 security patches are available' },
+                    { title: 'Slow Response Time', severity: 'critical', category: 'performance', description: 'API response time exceeds SLA' }
+                ];
+
+                results.forEach(result => {
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'bg-white rounded-lg p-6 card-shadow';
+                    resultCard.innerHTML = `
+                        <div class="flex items-start">
+                            <i class="fas fa-${getSeverityIcon(result.severity)} text-${getSeverityColor(result.severity)} text-xl mr-4 mt-1"></i>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-gray-800">${result.title}</h4>
+                                <p class="text-sm text-gray-600 mt-1">${result.description}</p>
+                                <div class="flex items-center mt-3 space-x-4">
+                                    <span class="text-xs bg-gray-100 px-2 py-1 rounded">${result.category}</span>
+                                    <button class="text-sm text-purple-600 hover:text-purple-700">View Details</button>
+                                    <button class="text-sm text-green-600 hover:text-green-700">Auto-Fix</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    resultsDiv.appendChild(resultCard);
+                });
+
+                addActivity('Diagnostic scan completed', 'success');
+            } catch (error) {
+                console.error('Error running diagnostics:', error);
+                addActivity('Diagnostic scan failed', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Activity feed
+        function addActivity(message, type = 'info') {
+            const feed = document.getElementById('activityFeed');
+            const activity = document.createElement('div');
+            activity.className = 'flex items-center p-3 bg-gray-50 rounded';
+            
+            let icon = 'info-circle';
+            let color = 'gray';
+            
+            switch(type) {
+                case 'success': icon = 'check-circle'; color = 'green'; break;
+                case 'error': icon = 'times-circle'; color = 'red'; break;
+                case 'warning': icon = 'exclamation-circle'; color = 'yellow'; break;
+            }
+            
+            activity.innerHTML = `
+                <i class="fas fa-${icon} text-${color}-500 mr-3"></i>
+                <div>
+                    <p class="text-sm font-medium">${message}</p>
+                    <p class="text-xs text-gray-500">${new Date().toLocaleTimeString()}</p>
+                </div>
+            `;
+            
+            feed.insertBefore(activity, feed.firstChild);
+            
+            // Keep only last 10 activities
+            while (feed.children.length > 10) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        // Utility functions
+        function showLoading() {
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSpinner').classList.add('hidden');
+        }
+
+        function getSeverityIcon(severity) {
+            switch(severity) {
+                case 'critical': return 'exclamation-triangle';
+                case 'warning': return 'exclamation-circle';
+                case 'info': return 'info-circle';
+                default: return 'check-circle';
+            }
+        }
+
+        function getSeverityColor(severity) {
+            switch(severity) {
+                case 'critical': return 'red-500';
+                case 'warning': return 'yellow-500';
+                case 'info': return 'blue-500';
+                default: return 'green-500';
+            }
+        }
+
+        function addFinding(finding) {
+            addActivity(`New finding: ${finding.title} (${finding.severity})`, 'warning');
+            
+            // Update findings count
+            const findingsEl = document.getElementById('activeFindings');
+            const currentCount = parseInt(findingsEl.textContent);
+            findingsEl.textContent = currentCount + 1;
+        }
+
+        function handleAnalyticsEvent(event) {
+            console.log('Analytics event:', event);
+        }
+    </script>
+</body>
+</html>

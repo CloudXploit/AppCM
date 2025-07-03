@@ -1,0 +1,378 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User management
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  username          String    @unique
+  password          String
+  firstName         String?
+  lastName          String?
+  avatar            String?
+  role              UserRole  @default(USER)
+  isActive          Boolean   @default(true)
+  emailVerified     Boolean   @default(false)
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  organizations     UserOrganization[]
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  diagnosticRuns    DiagnosticRun[]
+  remediations      Remediation[]
+  notifications     Notification[]
+  apiKeys           ApiKey[]
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+  VIEWER
+}
+
+model Organization {
+  id                String    @id @default(cuid())
+  name              String
+  slug              String    @unique
+  description       String?
+  logo              String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  users             UserOrganization[]
+  cmSystems         CMSystem[]
+  diagnosticProfiles DiagnosticProfile[]
+}
+
+model UserOrganization {
+  id              String    @id @default(cuid())
+  userId          String
+  organizationId  String
+  role            OrgRole   @default(MEMBER)
+  joinedAt        DateTime  @default(now())
+
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// Authentication
+model Session {
+  id              String    @id @default(cuid())
+  userId          String
+  token           String    @unique
+  ipAddress       String?
+  userAgent       String?
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ApiKey {
+  id              String    @id @default(cuid())
+  name            String
+  key             String    @unique
+  userId          String
+  permissions     String[]
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Content Manager Systems
+model CMSystem {
+  id                String    @id @default(cuid())
+  organizationId    String
+  name              String
+  description       String?
+  version           String
+  connectionType    ConnectionType
+  connectionConfig  Json
+  isActive          Boolean   @default(true)
+  lastHealthCheck   DateTime?
+  healthStatus      HealthStatus @default(UNKNOWN)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  diagnosticRuns    DiagnosticRun[]
+  systemMetrics     SystemMetric[]
+  integrations      Integration[]
+}
+
+enum ConnectionType {
+  DIRECT_DB
+  REST_API
+  SOAP_API
+  SSH
+}
+
+enum HealthStatus {
+  HEALTHY
+  WARNING
+  CRITICAL
+  UNKNOWN
+  OFFLINE
+}
+
+// Diagnostics
+model DiagnosticProfile {
+  id                String    @id @default(cuid())
+  organizationId    String
+  name              String
+  description       String?
+  rules             Json      // Array of diagnostic rules
+  schedule          String?   // Cron expression
+  isActive          Boolean   @default(true)
+  autoRemediate     Boolean   @default(false)
+  severity          Severity[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  diagnosticRuns    DiagnosticRun[]
+}
+
+model DiagnosticRun {
+  id                String    @id @default(cuid())
+  cmSystemId        String
+  profileId         String?
+  userId            String?
+  status            RunStatus @default(PENDING)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  duration          Int?      // in milliseconds
+  totalIssues       Int       @default(0)
+  criticalIssues    Int       @default(0)
+  warningIssues     Int       @default(0)
+  infoIssues        Int       @default(0)
+  summary           Json?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  cmSystem          CMSystem  @relation(fields: [cmSystemId], references: [id], onDelete: Cascade)
+  profile           DiagnosticProfile? @relation(fields: [profileId], references: [id])
+  user              User?     @relation(fields: [userId], references: [id])
+  issues            Issue[]
+  remediations      Remediation[]
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Issue {
+  id                String    @id @default(cuid())
+  diagnosticRunId   String
+  category          IssueCategory
+  severity          Severity
+  code              String
+  title             String
+  description       String
+  details           Json?
+  impact            String?
+  recommendation    String?
+  autoFixAvailable  Boolean   @default(false)
+  isResolved        Boolean   @default(false)
+  resolvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  diagnosticRun     DiagnosticRun @relation(fields: [diagnosticRunId], references: [id], onDelete: Cascade)
+  remediations      Remediation[]
+}
+
+enum IssueCategory {
+  CONFIGURATION
+  PERFORMANCE
+  SECURITY
+  DATA_INTEGRITY
+  INTEGRATION
+  COMPATIBILITY
+  SYSTEM_HEALTH
+  LICENSING
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+// Remediation
+model Remediation {
+  id                String    @id @default(cuid())
+  issueId           String
+  diagnosticRunId   String
+  userId            String
+  type              RemediationType
+  status            RemediationStatus @default(PENDING)
+  script            String?
+  executedAt        DateTime?
+  completedAt       DateTime?
+  result            Json?
+  rollbackData      Json?
+  error             String?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  issue             Issue     @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  diagnosticRun     DiagnosticRun @relation(fields: [diagnosticRunId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id])
+}
+
+enum RemediationType {
+  AUTOMATIC
+  MANUAL
+  SCHEDULED
+}
+
+enum RemediationStatus {
+  PENDING
+  APPROVED
+  EXECUTING
+  COMPLETED
+  FAILED
+  ROLLED_BACK
+}
+
+// System Metrics
+model SystemMetric {
+  id                String    @id @default(cuid())
+  cmSystemId        String
+  metricType        MetricType
+  value             Float
+  unit              String?
+  metadata          Json?
+  recordedAt        DateTime  @default(now())
+
+  // Relations
+  cmSystem          CMSystem  @relation(fields: [cmSystemId], references: [id], onDelete: Cascade)
+
+  @@index([cmSystemId, metricType, recordedAt])
+}
+
+enum MetricType {
+  CPU_USAGE
+  MEMORY_USAGE
+  DISK_USAGE
+  RESPONSE_TIME
+  ERROR_RATE
+  THROUGHPUT
+  ACTIVE_USERS
+  DATABASE_SIZE
+  QUERY_PERFORMANCE
+}
+
+// Integrations
+model Integration {
+  id                String    @id @default(cuid())
+  cmSystemId        String
+  type              IntegrationType
+  name              String
+  config            Json
+  status            IntegrationStatus @default(ACTIVE)
+  lastSyncAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  cmSystem          CMSystem  @relation(fields: [cmSystemId], references: [id], onDelete: Cascade)
+}
+
+enum IntegrationType {
+  IDOL
+  ENTERPRISE_STUDIO
+  LDAP
+  ACTIVE_DIRECTORY
+  SAP
+  SHAREPOINT
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+  SYNCING
+}
+
+// Notifications
+model Notification {
+  id                String    @id @default(cuid())
+  userId            String
+  type              NotificationType
+  title             String
+  message           String
+  data              Json?
+  isRead            Boolean   @default(false)
+  readAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  DIAGNOSTIC_COMPLETE
+  ISSUE_DETECTED
+  REMEDIATION_COMPLETE
+  SYSTEM_ALERT
+  MAINTENANCE
+  GENERAL
+}
+
+// Audit Logs
+model AuditLog {
+  id                String    @id @default(cuid())
+  userId            String?
+  action            String
+  entityType        String
+  entityId          String
+  changes           Json?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  user              User?     @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+}

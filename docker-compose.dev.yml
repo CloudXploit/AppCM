@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Development application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: cm-diagnostics-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://cmdiag:cmdiag_password@postgres:5432/cm_diagnostics
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://cmdiag:cmdiag_password@rabbitmq:5672
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: npm run dev
+
+  # Include base services from main docker-compose
+  postgres:
+    extends:
+      file: docker-compose.yml
+      service: postgres
+
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+
+  rabbitmq:
+    extends:
+      file: docker-compose.yml
+      service: rabbitmq
+
+  elasticsearch:
+    extends:
+      file: docker-compose.yml
+      service: elasticsearch
+
+  kibana:
+    extends:
+      file: docker-compose.yml
+      service: kibana
+
+  prometheus:
+    extends:
+      file: docker-compose.yml
+      service: prometheus
+
+  grafana:
+    extends:
+      file: docker-compose.yml
+      service: grafana
+
+  minio:
+    extends:
+      file: docker-compose.yml
+      service: minio

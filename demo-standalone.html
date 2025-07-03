@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CM Diagnostics - Full Demo (Checkpoints 1-7)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .feature-card { transition: all 0.3s; }
+        .feature-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Mock data
+        const mockSystems = [
+            {
+                id: '1',
+                name: 'Production CM',
+                version: '23.4',
+                edition: 'Enterprise',
+                status: 'healthy',
+                health: 95,
+                issues: 2,
+                features: ['IDOL', 'Records Manager', 'Web Client'],
+                lastCheck: new Date().toISOString()
+            },
+            {
+                id: '2',
+                name: 'Development CM',
+                version: '23.4',
+                edition: 'Standard',
+                status: 'warning',
+                health: 72,
+                issues: 8,
+                features: ['Web Client'],
+                lastCheck: new Date(Date.now() - 3600000).toISOString()
+            }
+        ];
+
+        const mockFindings = [
+            {
+                id: '1',
+                title: 'High CPU usage detected',
+                severity: 'high',
+                category: 'performance',
+                system: 'Production CM',
+                description: 'CPU usage has been consistently above 80% for the last hour',
+                remediation: 'Scale up resources or optimize queries'
+            },
+            {
+                id: '2',
+                title: 'Weak password policy',
+                severity: 'medium',
+                category: 'security',
+                system: 'Development CM',
+                description: 'Password complexity requirements are not enforced',
+                remediation: 'Update password policy settings'
+            }
+        ];
+
+        const checkpoints = [
+            {
+                id: 1,
+                name: 'Project Foundation',
+                status: 'completed',
+                description: 'Core architecture, UI components, monorepo setup',
+                features: ['TypeScript', 'React/Next.js', 'Tailwind CSS', 'Component Library']
+            },
+            {
+                id: 2,
+                name: 'CM Connector',
+                status: 'completed',
+                description: 'Multi-version Content Manager integration',
+                features: ['Version Detection', 'Connection Pooling', 'Unified API', 'Query Builder']
+            },
+            {
+                id: 3,
+                name: 'Diagnostic Engine',
+                status: 'completed',
+                description: 'Rules-based scanning and remediation',
+                features: ['Performance Scanner', 'Security Scanner', 'Configuration Scanner', 'Auto-remediation']
+            },
+            {
+                id: 4,
+                name: 'API Layer',
+                status: 'completed',
+                description: 'GraphQL and REST endpoints',
+                features: ['GraphQL Schema', 'REST API', 'WebSocket Subscriptions', 'Authentication']
+            },
+            {
+                id: 5,
+                name: 'Frontend Dashboard',
+                status: 'completed',
+                description: 'Modern web application',
+                features: ['System Management', 'Real-time Updates', 'Reports', 'Dark Mode']
+            },
+            {
+                id: 6,
+                name: 'IDOL Integration',
+                status: 'completed',
+                description: 'Search and analytics integration',
+                features: ['Query Builder', 'Analytics', 'Performance Monitoring', 'Sentiment Analysis']
+            },
+            {
+                id: 7,
+                name: 'ES Integration',
+                status: 'completed',
+                description: 'Workflow automation and reporting',
+                features: ['Workflow Builder', 'Automation Engine', 'Approval Workflows', 'Report Designer']
+            }
+        ];
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('overview');
+            const [selectedSystem, setSelectedSystem] = useState(null);
+            const [scanProgress, setScanProgress] = useState(0);
+            const [isScanning, setIsScanning] = useState(false);
+
+            const startScan = () => {
+                setIsScanning(true);
+                setScanProgress(0);
+                const interval = setInterval(() => {
+                    setScanProgress(prev => {
+                        if (prev >= 100) {
+                            clearInterval(interval);
+                            setIsScanning(false);
+                            return 100;
+                        }
+                        return prev + 10;
+                    });
+                }, 300);
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <header className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex items-center justify-between h-16">
+                                <div className="flex items-center">
+                                    <h1 className="text-2xl font-bold text-gray-900">CM Diagnostics</h1>
+                                    <span className="ml-3 text-sm text-gray-500">Full Demo v1.0</span>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <span className="text-sm text-gray-600">demo@example.com</span>
+                                    <button className="text-sm text-blue-600 hover:text-blue-800">Logout</button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Navigation */}
+                    <nav className="bg-white border-b">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex space-x-8">
+                                {['overview', 'systems', 'diagnostics', 'findings', 'workflows', 'reports'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`py-3 px-1 border-b-2 font-medium text-sm capitalize ${
+                                            activeTab === tab
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Content */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {/* Overview Tab */}
+                        <div className={`tab-content ${activeTab === 'overview' ? 'active' : ''}`}>
+                            <h2 className="text-2xl font-bold mb-6">Project Overview</h2>
+                            
+                            {/* Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h3 className="text-sm font-medium text-gray-500">Total Systems</h3>
+                                    <p className="text-3xl font-bold text-gray-900 mt-2">{mockSystems.length}</p>
+                                </div>
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h3 className="text-sm font-medium text-gray-500">Active Issues</h3>
+                                    <p className="text-3xl font-bold text-yellow-600 mt-2">10</p>
+                                </div>
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h3 className="text-sm font-medium text-gray-500">Health Score</h3>
+                                    <p className="text-3xl font-bold text-green-600 mt-2">83.5%</p>
+                                </div>
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h3 className="text-sm font-medium text-gray-500">Checkpoints</h3>
+                                    <p className="text-3xl font-bold text-blue-600 mt-2">7/12</p>
+                                </div>
+                            </div>
+
+                            {/* Checkpoints */}
+                            <h3 className="text-xl font-bold mb-4">Implementation Progress</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {checkpoints.map(checkpoint => (
+                                    <div key={checkpoint.id} className="feature-card bg-white rounded-lg shadow p-6">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <h4 className="text-lg font-semibold">
+                                                Checkpoint {checkpoint.id}: {checkpoint.name}
+                                            </h4>
+                                            <span className="text-green-500">✓</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mb-4">{checkpoint.description}</p>
+                                        <div className="space-y-1">
+                                            {checkpoint.features.map((feature, idx) => (
+                                                <div key={idx} className="text-sm text-gray-500 flex items-center">
+                                                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                                                    {feature}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Systems Tab */}
+                        <div className={`tab-content ${activeTab === 'systems' ? 'active' : ''}`}>
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold">Content Manager Systems</h2>
+                                <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    Add System
+                                </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {mockSystems.map(system => (
+                                    <div key={system.id} className="bg-white rounded-lg shadow p-6">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h3 className="text-xl font-semibold">{system.name}</h3>
+                                                <p className="text-sm text-gray-500">
+                                                    {system.edition} v{system.version}
+                                                </p>
+                                            </div>
+                                            <span className={`px-2 py-1 text-xs rounded ${
+                                                system.status === 'healthy' 
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {system.status}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="space-y-2 mb-4">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-gray-500">Health Score</span>
+                                                <span className="font-medium">{system.health}%</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                <div 
+                                                    className={`h-2 rounded-full ${
+                                                        system.health > 80 ? 'bg-green-500' : 'bg-yellow-500'
+                                                    }`}
+                                                    style={{width: `${system.health}%`}}
+                                                ></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm text-gray-500">
+                                                {system.issues} issues found
+                                            </span>
+                                            <button 
+                                                onClick={() => setSelectedSystem(system)}
+                                                className="text-blue-600 hover:text-blue-800 text-sm"
+                                            >
+                                                View Details →
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Diagnostics Tab */}
+                        <div className={`tab-content ${activeTab === 'diagnostics' ? 'active' : ''}`}>
+                            <h2 className="text-2xl font-bold mb-6">Diagnostic Engine</h2>
+                            
+                            <div className="bg-white rounded-lg shadow p-6 mb-6">
+                                <h3 className="text-lg font-semibold mb-4">Run Diagnostic Scan</h3>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Select System
+                                        </label>
+                                        <select className="w-full border rounded px-3 py-2">
+                                            {mockSystems.map(system => (
+                                                <option key={system.id} value={system.id}>
+                                                    {system.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Scan Type
+                                        </label>
+                                        <select className="w-full border rounded px-3 py-2">
+                                            <option>Comprehensive</option>
+                                            <option>Performance Only</option>
+                                            <option>Security Only</option>
+                                            <option>Configuration</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={startScan}
+                                    disabled={isScanning}
+                                    className={`w-full py-2 rounded font-medium ${
+                                        isScanning 
+                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                >
+                                    {isScanning ? 'Scanning...' : 'Start Scan'}
+                                </button>
+
+                                {isScanning && (
+                                    <div className="mt-4">
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span>Progress</span>
+                                            <span>{scanProgress}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div 
+                                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                style={{width: `${scanProgress}%`}}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">Available Rules</h3>
+                                <div className="space-y-2">
+                                    {[
+                                        'CPU Usage Threshold',
+                                        'Memory Usage Check',
+                                        'Database Connection Pool',
+                                        'Authentication Settings',
+                                        'Backup Configuration',
+                                        'SSL Certificate Expiry'
+                                    ].map((rule, idx) => (
+                                        <div key={idx} className="flex items-center justify-between py-2 border-b">
+                                            <span className="text-sm">{rule}</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" defaultChecked className="sr-only peer" />
+                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Findings Tab */}
+                        <div className={`tab-content ${activeTab === 'findings' ? 'active' : ''}`}>
+                            <h2 className="text-2xl font-bold mb-6">Diagnostic Findings</h2>
+                            
+                            <div className="space-y-4">
+                                {mockFindings.map(finding => (
+                                    <div key={finding.id} className="bg-white rounded-lg shadow p-6">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h3 className="text-lg font-semibold">{finding.title}</h3>
+                                                <p className="text-sm text-gray-500 mt-1">{finding.system}</p>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <span className={`px-2 py-1 text-xs rounded ${
+                                                    finding.severity === 'high'
+                                                        ? 'bg-red-100 text-red-800'
+                                                        : finding.severity === 'medium'
+                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                        : 'bg-blue-100 text-blue-800'
+                                                }`}>
+                                                    {finding.severity}
+                                                </span>
+                                                <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+                                                    {finding.category}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <p className="text-sm text-gray-600 mb-4">{finding.description}</p>
+                                        
+                                        <div className="bg-gray-50 rounded p-3 mb-4">
+                                            <p className="text-sm font-medium text-gray-700 mb-1">Recommended Action:</p>
+                                            <p className="text-sm text-gray-600">{finding.remediation}</p>
+                                        </div>
+                                        
+                                        <div className="flex space-x-3">
+                                            <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                                Apply Fix
+                                            </button>
+                                            <button className="border border-gray-300 px-4 py-2 rounded text-sm hover:bg-gray-50">
+                                                Dismiss
+                                            </button>
+                                            <button className="text-blue-600 hover:text-blue-800 text-sm">
+                                                View Details
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Workflows Tab */}
+                        <div className={`tab-content ${activeTab === 'workflows' ? 'active' : ''}`}>
+                            <h2 className="text-2xl font-bold mb-6">Enterprise Studio Workflows</h2>
+                            
+                            <div className="bg-white rounded-lg shadow p-6 mb-6">
+                                <h3 className="text-lg font-semibold mb-4">Create New Workflow</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Workflow Name
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="e.g., Incident Response Workflow"
+                                            className="w-full border rounded px-3 py-2"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Trigger
+                                        </label>
+                                        <select className="w-full border rounded px-3 py-2">
+                                            <option>Critical Finding Detected</option>
+                                            <option>Manual Trigger</option>
+                                            <option>Schedule (Daily)</option>
+                                            <option>System Alert</option>
+                                        </select>
+                                    </div>
+                                    <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                        Create Workflow
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">Active Workflows</h3>
+                                <div className="space-y-3">
+                                    {[
+                                        {
+                                            name: 'Diagnostic & Remediation',
+                                            status: 'running',
+                                            lastRun: '2 hours ago',
+                                            executions: 24
+                                        },
+                                        {
+                                            name: 'Daily Health Check',
+                                            status: 'scheduled',
+                                            lastRun: 'Yesterday',
+                                            executions: 156
+                                        },
+                                        {
+                                            name: 'Critical Alert Response',
+                                            status: 'idle',
+                                            lastRun: '3 days ago',
+                                            executions: 8
+                                        }
+                                    ].map((workflow, idx) => (
+                                        <div key={idx} className="flex items-center justify-between py-3 border-b">
+                                            <div>
+                                                <h4 className="font-medium">{workflow.name}</h4>
+                                                <p className="text-sm text-gray-500">
+                                                    Last run: {workflow.lastRun} • {workflow.executions} executions
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center space-x-3">
+                                                <span className={`px-2 py-1 text-xs rounded ${
+                                                    workflow.status === 'running'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : workflow.status === 'scheduled'
+                                                        ? 'bg-blue-100 text-blue-800'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {workflow.status}
+                                                </span>
+                                                <button className="text-blue-600 hover:text-blue-800 text-sm">
+                                                    View
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Reports Tab */}
+                        <div className={`tab-content ${activeTab === 'reports' ? 'active' : ''}`}>
+                            <h2 className="text-2xl font-bold mb-6">Reports & Analytics</h2>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Generate Report</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Report Type
+                                            </label>
+                                            <select className="w-full border rounded px-3 py-2">
+                                                <option>Executive Summary</option>
+                                                <option>Compliance Report</option>
+                                                <option>Performance Analysis</option>
+                                                <option>Security Audit</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Date Range
+                                            </label>
+                                            <select className="w-full border rounded px-3 py-2">
+                                                <option>Last 7 days</option>
+                                                <option>Last 30 days</option>
+                                                <option>This month</option>
+                                                <option>Custom range</option>
+                                            </select>
+                                        </div>
+                                        <button className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Recent Reports</h3>
+                                    <div className="space-y-3">
+                                        {[
+                                            {
+                                                name: 'Monthly Compliance Report',
+                                                date: '2024-01-01',
+                                                size: '2.4 MB'
+                                            },
+                                            {
+                                                name: 'System Health Summary',
+                                                date: '2024-01-07',
+                                                size: '1.8 MB'
+                                            },
+                                            {
+                                                name: 'Security Audit Q4 2023',
+                                                date: '2023-12-31',
+                                                size: '3.2 MB'
+                                            }
+                                        ].map((report, idx) => (
+                                            <div key={idx} className="flex items-center justify-between py-2 border-b">
+                                                <div>
+                                                    <p className="font-medium text-sm">{report.name}</p>
+                                                    <p className="text-xs text-gray-500">{report.date} • {report.size}</p>
+                                                </div>
+                                                <div className="flex space-x-2">
+                                                    <button className="text-blue-600 hover:text-blue-800 text-sm">
+                                                        View
+                                                    </button>
+                                                    <button className="text-gray-600 hover:text-gray-800 text-sm">
+                                                        Download
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-6 bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">IDOL Analytics Integration</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-gray-50 rounded p-4">
+                                        <h4 className="font-medium text-sm mb-2">Content Analysis</h4>
+                                        <p className="text-2xl font-bold text-blue-600">2.3M</p>
+                                        <p className="text-xs text-gray-500">Documents analyzed</p>
+                                    </div>
+                                    <div className="bg-gray-50 rounded p-4">
+                                        <h4 className="font-medium text-sm mb-2">Sentiment Score</h4>
+                                        <p className="text-2xl font-bold text-green-600">+0.73</p>
+                                        <p className="text-xs text-gray-500">Positive trend</p>
+                                    </div>
+                                    <div className="bg-gray-50 rounded p-4">
+                                        <h4 className="font-medium text-sm mb-2">Key Concepts</h4>
+                                        <p className="text-2xl font-bold text-purple-600">156</p>
+                                        <p className="text-xs text-gray-500">Identified this month</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

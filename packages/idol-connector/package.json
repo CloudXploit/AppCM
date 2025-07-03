@@ -1,0 +1,37 @@
+{
+  "name": "@cm-diagnostics/idol-connector",
+  "version": "1.0.0",
+  "description": "IDOL integration for CM Diagnostics",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "xml2js": "^0.6.2",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.0",
+    "winston": "^3.11.0",
+    "p-queue": "^7.4.1",
+    "node-cache": "^5.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/lodash": "^4.14.200",
+    "@types/xml2js": "^0.4.14",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "peerDependencies": {
+    "@cm-diagnostics/core": "workspace:*",
+    "@cm-diagnostics/diagnostics": "workspace:*"
+  }
+}

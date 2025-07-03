@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CM Diagnostics - Demo</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Mock data
+        const mockSystems = [
+            {
+                id: '1',
+                name: 'Production CM',
+                version: '23.4',
+                edition: 'Enterprise',
+                health: { status: 'healthy', score: 95, issues: 2 },
+                database: { type: 'SQLSERVER', name: 'CM_PROD', server: 'sql01.corp.local' },
+                lastConnected: new Date().toISOString()
+            },
+            {
+                id: '2',
+                name: 'Development CM',
+                version: '23.4',
+                edition: 'Standard',
+                health: { status: 'warning', score: 72, issues: 8 },
+                database: { type: 'SQLSERVER', name: 'CM_DEV', server: 'sql-dev.corp.local' },
+                lastConnected: new Date(Date.now() - 3600000).toISOString()
+            },
+            {
+                id: '3',
+                name: 'Test Environment',
+                version: '22.1',
+                edition: 'Enterprise',
+                health: { status: 'critical', score: 45, issues: 15 },
+                database: { type: 'ORACLE', name: 'CMTEST', server: 'ora-test.corp.local' },
+                lastConnected: new Date(Date.now() - 7200000).toISOString()
+            }
+        ];
+
+        const mockScans = [
+            {
+                id: '1',
+                name: 'Daily Health Check',
+                status: 'IN_PROGRESS',
+                progress: 65,
+                systemId: '1',
+                findingsCount: { total: 0, critical: 0, high: 0, medium: 0, low: 0 }
+            },
+            {
+                id: '2',
+                name: 'Performance Analysis',
+                status: 'COMPLETED',
+                progress: 100,
+                systemId: '2',
+                findingsCount: { total: 8, critical: 0, high: 2, medium: 4, low: 2 }
+            }
+        ];
+
+        const mockFindings = [
+            { id: '1', title: 'High CPU Usage on Application Server', severity: 'HIGH', category: 'PERFORMANCE' },
+            { id: '2', title: 'Outdated SSL Certificate', severity: 'CRITICAL', category: 'SECURITY' },
+            { id: '3', title: 'Database Connection Pool Exhaustion', severity: 'HIGH', category: 'PERFORMANCE' },
+            { id: '4', title: 'Missing Security Headers', severity: 'MEDIUM', category: 'SECURITY' },
+            { id: '5', title: 'Slow Query Performance', severity: 'MEDIUM', category: 'PERFORMANCE' }
+        ];
+
+        // Components
+        function SystemCard({ system }) {
+            const getHealthColor = (status) => {
+                switch(status) {
+                    case 'healthy': return 'bg-green-100 text-green-800';
+                    case 'warning': return 'bg-yellow-100 text-yellow-800';
+                    case 'critical': return 'bg-red-100 text-red-800';
+                    default: return 'bg-gray-100 text-gray-800';
+                }
+            };
+
+            return (
+                <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 className="text-lg font-semibold">{system.name}</h3>
+                            <p className="text-sm text-gray-600">{system.edition} {system.version}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getHealthColor(system.health.status)}`}>
+                            {system.health.status}
+                        </span>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span>Health Score</span>
+                                <span className="font-medium">{system.health.score}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                    className={`h-2 rounded-full ${system.health.score >= 80 ? 'bg-green-500' : system.health.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                    style={{ width: `${system.health.score}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                        
+                        <div className="text-sm text-gray-600">
+                            <p>Database: {system.database.type}</p>
+                            <p>{system.database.name} @ {system.database.server}</p>
+                        </div>
+                        
+                        <div className="flex gap-2 pt-2">
+                            <button className="flex-1 py-2 px-3 border border-gray-300 rounded text-sm hover:bg-gray-50">
+                                Run Scan
+                            </button>
+                            <button className="flex-1 py-2 px-3 border border-gray-300 rounded text-sm hover:bg-gray-50">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function ScanProgress({ scan }) {
+            return (
+                <div className="bg-white rounded-lg shadow p-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium">{scan.name}</h4>
+                        <span className="text-sm text-gray-600">{scan.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                        <div 
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${scan.progress}%` }}
+                        ></div>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                        {scan.status === 'IN_PROGRESS' ? 'Scanning...' : 'Completed'}
+                    </p>
+                </div>
+            );
+        }
+
+        function FindingItem({ finding }) {
+            const getSeverityColor = (severity) => {
+                switch(severity) {
+                    case 'CRITICAL': return 'bg-red-100 text-red-800';
+                    case 'HIGH': return 'bg-orange-100 text-orange-800';
+                    case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
+                    case 'LOW': return 'bg-blue-100 text-blue-800';
+                    default: return 'bg-gray-100 text-gray-800';
+                }
+            };
+
+            return (
+                <div className="flex items-center justify-between p-3 hover:bg-gray-50">
+                    <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(finding.severity)}`}>
+                            {finding.severity}
+                        </span>
+                        <div>
+                            <p className="text-sm font-medium">{finding.title}</p>
+                            <p className="text-xs text-gray-600">{finding.category}</p>
+                        </div>
+                    </div>
+                    <button className="text-sm text-blue-600 hover:text-blue-800">
+                        View →
+                    </button>
+                </div>
+            );
+        }
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('systems');
+            const [systems, setSystems] = useState(mockSystems);
+            const [scans, setScans] = useState(mockScans);
+            const [findings, setFindings] = useState(mockFindings);
+
+            // Simulate scan progress
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setScans(prevScans => 
+                        prevScans.map(scan => 
+                            scan.status === 'IN_PROGRESS' && scan.progress < 100
+                                ? { ...scan, progress: Math.min(scan.progress + 5, 100) }
+                                : scan
+                        )
+                    );
+                }, 1000);
+                return () => clearInterval(interval);
+            }, []);
+
+            const stats = {
+                totalSystems: systems.length,
+                healthySystems: systems.filter(s => s.health.status === 'healthy').length,
+                activeScans: scans.filter(s => s.status === 'IN_PROGRESS').length,
+                totalFindings: findings.length
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    {/* Header */}
+                    <header className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <div className="flex items-center">
+                                    <h1 className="text-xl font-bold text-gray-900">CM Diagnostics</h1>
+                                    <span className="ml-4 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">v1.0.0</span>
+                                </div>
+                                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                    New Scan
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Navigation */}
+                    <div className="bg-white border-b">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <nav className="flex space-x-8">
+                                {['systems', 'diagnostics', 'findings', 'reports'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm capitalize ${
+                                            activeTab === tab
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {/* Stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <p className="text-sm font-medium text-gray-600">Total Systems</p>
+                                <p className="text-2xl font-bold mt-2">{stats.totalSystems}</p>
+                            </div>
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <p className="text-sm font-medium text-gray-600">Healthy Systems</p>
+                                <p className="text-2xl font-bold mt-2 text-green-600">{stats.healthySystems}</p>
+                            </div>
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <p className="text-sm font-medium text-gray-600">Active Scans</p>
+                                <p className="text-2xl font-bold mt-2 text-blue-600">{stats.activeScans}</p>
+                            </div>
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <p className="text-sm font-medium text-gray-600">Total Findings</p>
+                                <p className="text-2xl font-bold mt-2 text-orange-600">{stats.totalFindings}</p>
+                            </div>
+                        </div>
+
+                        {/* Tab Content */}
+                        {activeTab === 'systems' && (
+                            <div>
+                                <h2 className="text-lg font-semibold mb-4">Content Manager Systems</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {systems.map(system => (
+                                        <SystemCard key={system.id} system={system} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'diagnostics' && (
+                            <div>
+                                <h2 className="text-lg font-semibold mb-4">Active Scans</h2>
+                                <div className="space-y-4">
+                                    {scans.map(scan => (
+                                        <ScanProgress key={scan.id} scan={scan} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'findings' && (
+                            <div>
+                                <h2 className="text-lg font-semibold mb-4">Recent Findings</h2>
+                                <div className="bg-white rounded-lg shadow divide-y">
+                                    {findings.map(finding => (
+                                        <FindingItem key={finding.id} finding={finding} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'reports' && (
+                            <div className="bg-white rounded-lg shadow p-8 text-center">
+                                <h3 className="text-lg font-semibold mb-2">Reports</h3>
+                                <p className="text-gray-600 mb-4">Generate comprehensive reports for your systems</p>
+                                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                    Generate Report
+                                </button>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "cm-diagnostics-simple",
+  "version": "1.0.0",
+  "description": "CM Diagnostics - Simplified Server",
+  "main": "simple-server.js",
+  "scripts": {
+    "start": "node simple-server.js",
+    "dev": "node simple-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

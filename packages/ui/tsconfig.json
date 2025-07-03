@@ -1,0 +1,9 @@
+{
+  "extends": "@cm-diagnostics/typescript-config/library.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "dom"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

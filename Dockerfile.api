@@ -1,0 +1,35 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dependencies for building native modules
+RUN apk add --no-cache python3 make g++
+
+# Copy package files
+COPY package*.json ./
+COPY turbo.json ./
+COPY tsconfig.json ./
+
+# Copy workspace packages
+COPY packages/ ./packages/
+COPY apps/ ./apps/
+
+# Install dependencies
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+# Generate Prisma client
+WORKDIR /app/packages/database
+RUN npx prisma generate || true
+
+# Build packages
+WORKDIR /app
+RUN npm run build || true
+
+# Expose port
+EXPOSE 4000
+
+# Set working directory to API
+WORKDIR /app/packages/api
+
+# Start the API server
+CMD ["npm", "run", "dev"]

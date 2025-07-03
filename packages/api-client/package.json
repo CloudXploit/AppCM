@@ -1,0 +1,28 @@
+{
+  "name": "@cm-diagnostics/api-client",
+  "version": "0.0.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "files": ["dist/**"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src/",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cm-diagnostics/eslint-config": "*",
+    "@cm-diagnostics/typescript-config": "*",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@cm-diagnostics/core": "*",
+    "axios": "^1.7.9",
+    "graphql": "^16.10.0",
+    "graphql-request": "^7.1.3"
+  }
+}

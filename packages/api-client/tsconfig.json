@@ -1,0 +1,5 @@
+{
+  "extends": "@cm-diagnostics/typescript-config/library.json",
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
