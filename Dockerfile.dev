@@ -1,5 +1,5 @@
 # Development Dockerfile for CM Diagnostics
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Install additional tools for development
 RUN apk add --no-cache \
