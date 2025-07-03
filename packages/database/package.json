@@ -19,7 +19,7 @@
   "devDependencies": {
     "@cm-diagnostics/eslint-config": "*",
     "@cm-diagnostics/typescript-config": "*",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.0.10",
     "prisma": "^6.2.0",
     "tsup": "^8.3.5",
     "typescript": "^5.0.0"
@@ -32,7 +32,7 @@
     "@cm-diagnostics/eslint-config": "*",
     "@cm-diagnostics/typescript-config": "*",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.0.10",
     "prisma": "^6.2.0",
     "ts-node": "^10.9.2",
     "tsup": "^8.3.5",

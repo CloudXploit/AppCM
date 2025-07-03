@@ -15,7 +15,7 @@
   "devDependencies": {
     "@cm-diagnostics/eslint-config": "*",
     "@cm-diagnostics/typescript-config": "*",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.0.10",
     "tsup": "^8.3.5",
     "typescript": "^5.0.0"
   },
