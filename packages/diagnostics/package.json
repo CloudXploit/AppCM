@@ -28,6 +28,6 @@
     "@cm-diagnostics/cm-connector": "*",
     "@cm-diagnostics/logger": "*",
     "p-queue": "^8.0.1",
-    "zod": "^3.24.1"
+    "zod": "^4.1.1"
   }
 }
